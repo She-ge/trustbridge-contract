@@ -894,6 +894,26 @@ leaf = SHA256("trustbridge/export-leaf/v1:" || username_bytes || 0x00 || address
   flag is part of the leaf, so a proof attests to verification status at
   export time, not just membership.
 
+**`v1` encoding is immutable.** The domain strings, UTF-8 field bytes and
+their order, the `0x00` separator, the one-byte boolean, and the tree
+construction are all part of the public proof format. The following golden
+vectors are normative (hashes are lowercase hexadecimal SHA-256 outputs):
+
+| Export entry / state | Expected hash |
+|----------------------|---------------|
+| `("alice", GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA, true)` leaf | `03f5777f71952d65b384a30ee2a389996eec0c5411882fab4b825dbd45ba34f1` |
+| `("bob", GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ, false)` leaf | `965304356c6c946637f68203856da9f67804028a3bc009e5fb82d6d66ff3554c` |
+| `("carol", GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H, true)` leaf | `f36b3fabc5f6ded2df39a6ff6def7e7e751e62bc2754467ccadd214bdc2b3a31` |
+| Page `[alice, bob, carol]` in that order (odd final node promoted unchanged) | `81074a96376e707644a2042a2fb47bceb61f9f572b42fa9f92ce2817e6f873b0` |
+
+The versioned vectors are enforced by `tests/merkle_export.rs` against both
+the public leaf-hash entry point and roots returned for known export pages.
+Any change to `v1` encoding or tree semantics is a breaking proof-format
+change and must not be applied in place. Introduce a separately versioned
+domain and API/root format, retain `v1` verification for existing proofs as
+long as they are supported, and update the vectors and off-chain consumers
+alongside the versioned change.
+
 `merkle_leaf_hash(github_username, stellar_address, verified) -> BytesN<32>`
 is a read-only, no-auth contract call exposing this exact computation, so
 off-chain tooling can check its own reimplementation against the on-chain one
