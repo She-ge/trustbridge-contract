@@ -127,21 +127,22 @@ enum Role {
 | Revoker | ❌ | ✅ | ❌ | ❌ |
 | Upgrader | ❌ | ❌ | ✅ | ❌ |
 
-**Optional expiry (Issue #221):** `set_role` grants a role with no expiry.
-`set_role_with_expiry(target, role, expires_at: Option<u64>)` grants the same
-role but, once `env.ledger().timestamp() >= expires_at`, `get_role` and every
-check built on it (`verify`, `revoke_verification`, `batch_verify`,
-`get_role_holders`, `execute_batch_remove`'s second-signer check) treat
-`target` as holding no role at all — no expiry never happens unless a caller
-opts in via `set_role_with_expiry`. Expiry is **lazy**: the underlying
-storage entry is left in place until `remove_role` deletes it; `get_role`
-just stops reporting it. `get_role_expiry(address)` returns the raw
-(possibly-already-past) timestamp, or `None` for a no-expiry grant or no
-grant at all. `has_role(address, role)` is a convenience boolean for
-`get_role(address) == Some(role)`. The contract admin's own identity
-(`ADMIN_KEY`, checked by `has_admin_role`) is a separate storage slot never
-touched by this — only the RBAC-style `Role::Admin` grant can expire, and
-only if explicitly granted with an expiry.
+**Optional expiry (Issues #221, #428):** `set_role` grants a role with no
+expiry. `set_role_with_expiry(target, role, expires_at: Option<u64>)` grants
+the same role with an optional Unix timestamp. The grant is active only while
+`ledger.timestamp() < expires_at`; at the exact expiry timestamp it is
+expired. Every privileged role-gated entrypoint checks expiry before role
+authorization, including `verify`, `batch_verify`, `revoke_verification`, all
+Upgrader actions, and `execute_batch_remove`'s second-signer check. An expired
+grant is rejected with `RoleExpired` (error code 57), not the generic
+`NotAuthorized` error. Renew the role with `set_role` or
+`set_role_with_expiry` before retrying. Expiry is **lazy**: stored role and
+expiry entries remain until `remove_role` deletes them. Read APIs such as
+`get_role`, `has_role`, and `get_role_holders` report an expired grant as
+absent; `get_role_expiry(address)` continues to return its raw timestamp.
+The contract admin's identity (`ADMIN_KEY`, checked by `has_admin_role`) is a
+separate immutable authority and is not affected by expiry on its RBAC
+`Role::Admin` grant.
 
 ### HealthSnapshot
 
@@ -224,6 +225,7 @@ struct ChallengeRecord {
 | 35 | `RoleGrantNotReady` | `activate_role` before the grant's timelock elapsed (Issue #220) |
 | 36 | `ProvenanceMissing` | `assert_build` / `set_provenance_digests` before any provenance record exists (Issue #225) |
 | 37 | `ProvenanceMismatch` | `assert_build` given a hash that does not match stored provenance (Issue #225) |
+| 57 | `RoleExpired` | A role-gated privileged invocation was made at or after the role's expiry timestamp |
 
 > **`NetworkMismatch` moved from 21 to 30.** This table previously listed it at
 > code 21 while the enum had `InvalidPauseReason` there and no `NetworkMismatch`

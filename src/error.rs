@@ -76,6 +76,7 @@ use soroban_sdk::contracterror;
 /// | 35 | `RoleGrantNotReady` | `activate_role` |
 /// | 36 | `ProvenanceMissing` | `assert_build` |
 /// | 37 | `ProvenanceMismatch` | `assert_build` |
+/// | 57 | `RoleExpired` | any role-gated privileged invocation |
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
@@ -227,6 +228,10 @@ pub enum ContractError {
     /// `execute_batch_remove` / `cancel_batch_remove` was called with no live
     /// (or already-expired) proposal (Issue #219).
     NoPendingBatchRemove = 56,
+    /// A privileged invocation was made by an address whose role grant has
+    /// expired (Issue #428). The caller must have their role renewed via
+    /// `set_role` or `set_role_with_expiry` before retrying.
+    RoleExpired = 57,
 }
 
 impl ContractError {
@@ -297,6 +302,7 @@ impl ContractError {
             54 => Some(ContractError::DualControlRequired),
             55 => Some(ContractError::BatchRemoveProposalPending),
             56 => Some(ContractError::NoPendingBatchRemove),
+            57 => Some(ContractError::RoleExpired),
             _ => None,
         }
     }
@@ -389,6 +395,7 @@ impl ContractError {
 
             // A pending grant becomes activatable once its timelock elapses.
             ContractError::RoleGrantNotReady => ErrorCategory::Retry,
+            ContractError::RoleExpired => ErrorCategory::Auth,
         }
     }
 

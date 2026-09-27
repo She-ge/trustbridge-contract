@@ -1509,6 +1509,20 @@ pub fn is_role_expired(env: &Env, address: &Address) -> bool {
     }
 }
 
+/// Fails with [`ContractError::RoleExpired`] when `address` holds a role grant
+/// that has an expiry timestamp and that timestamp has been reached or passed
+/// (Issue #428).
+///
+/// Call this before a privileged invoke checks the caller's active role,
+/// because [`get_role`] intentionally hides expired grants. Addresses with no
+/// stored role grant pass; grants with no expiry always pass.
+pub fn require_role_not_expired(env: &Env, address: &Address) -> Result<(), ContractError> {
+    if role_key_exists(env, address) && is_role_expired(env, address) {
+        return Err(ContractError::RoleExpired);
+    }
+    Ok(())
+}
+
 /// Returns `address`'s currently active role, or `None` if it holds no role
 /// **or** its grant has expired (Issue #221).
 ///
