@@ -335,6 +335,30 @@ Run tests:
 cargo test
 ```
 
+### Homoglyph corpus
+
+The homoglyph corpus in `tests/homoglyph_corpus.rs` is a security regression
+suite for lookalike Unicode characters, invisible formatting characters,
+bidirectional controls, and any entry point that must reject them. Extend it
+whenever a new confusable or spoofing vector is reported, discovered during
+review, or introduced by a change to username handling. Keep the ASCII-only
+acceptance cases as positive controls.
+
+Add each attack string to the relevant corpus category with a brief description
+and code point, and add an entry-point regression test when the vector could
+expose a validation bypass. Update the documented corpus scope and expected
+minimum in `test_homoglyph_corpus_coverage_complete` as needed. Do not normalize
+or permit a new character as a local exception; changes to the ASCII-only
+policy require an explicit security review.
+
+Run the dedicated test before submitting changes:
+
+```bash
+cargo test --test homoglyph_corpus
+```
+
+CI runs this target as a blocking step on every pull request.
+
 ### WASM Integration Tests
 
 The contract includes a WASM upgrade + cooldown integration test in `tests/integration.rs` that exercises the upgrade path using a real WASM artifact. This test is gated behind the `wasm-test` feature flag and is not run by default.
